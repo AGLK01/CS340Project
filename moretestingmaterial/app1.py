@@ -314,7 +314,7 @@ def issue_drug():
         conn.commit()
         cursor.close()
         conn.close()
-        return jsonify({"message": "Drug issued successfully!"})
+        return jsonify({"message": "Drugs issued successfully!"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
