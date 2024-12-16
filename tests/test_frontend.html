@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Test Frontend</title>
+</head>
+<body>
+    <h1>Employee List</h1>
+    <button id="fetchEmployees">Fetch Employees</button>
+    <table border="1" id="employeeTable">
+        <thead>
+            <tr>
+                <th>EID</th>
+                <th>Name</th>
+                <th>Access Level</th>
+                <th>Is Manager</th>
+                <th>Is MP</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Dynamic content will be added here -->
+        </tbody>
+    </table>
+
+    <h2>Add New Employee</h2>
+    <form id="addEmployeeForm">
+        <label for="eid">EID:</label>
+        <input type="number" id="eid" name="eid" required><br>
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required><br>
+        <label for="accessLevel">Access Level:</label>
+        <input type="text" id="accessLevel" name="accessLevel" required><br>
+        <label for="isManager">Is Manager:</label>
+        <input type="checkbox" id="isManager" name="isManager"><br>
+        <label for="isMP">Is MP:</label>
+        <input type="checkbox" id="isMP" name="isMP"><br>
+        <button type="submit">Add Employee</button>
+    </form>
+
+    <script>
+        const baseURL = 'http://127.0.0.1:5000';
+
+        // Fetch employees and display in the table
+        document.getElementById('fetchEmployees').addEventListener('click', () => {
+            fetch(`${baseURL}/employees`)
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.getElementById('employeeTable').querySelector('tbody');
+                    tableBody.innerHTML = ''; // Clear previous data
+                    data.forEach(employee => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${employee.EID}</td>
+                            <td>${employee.name}</td>
+                            <td>${employee.access_level}</td>
+                            <td>${employee.IsManager}</td>
+                            <td>${employee.IsMP}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(error => console.error('Error fetching employees:', error));
+        });
+
+        // Handle new employee submission
+        document.getElementById('addEmployeeForm').addEventListener('submit', (event) => {
+            event.preventDefault(); // Prevent form submission
+            const newEmployee = {
+                EID: document.getElementById('eid').value,
+                name: document.getElementById('name').value,
+                access_level: document.getElementById('accessLevel').value,
+                IsManager: document.getElementById('isManager').checked,
+                IsMP: document.getElementById('isMP').checked
+            };
+
+            fetch(`${baseURL}/add_employee`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newEmployee)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        alert(data.message);
+                    } else {
+                        alert('Error adding employee: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => console.error('Error adding employee:', error));
+        });
+    </script>
+</body>
+</html>
