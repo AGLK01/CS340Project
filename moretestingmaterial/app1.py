@@ -24,6 +24,9 @@ def get_db_connection():
         password=DB_PASS,
         port=DB_PORT
     )
+    cursor = conn.cursor()
+    cursor.execute("SET TIME ZONE 'UTC+3';")  # Set PostgreSQL time zone explicitly
+    cursor.close()
     return conn
 
 @app.route('/')
@@ -139,8 +142,15 @@ def get_patients():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Patient;")
-        patients = cursor.fetchall()
+        cursor.execute("SELECT NID, name, dob, medical_records FROM Patient;")
+        rows = cursor.fetchall()
+
+        # Convert rows to a list of dictionaries
+        patients = [
+            {"nid": row[0], "name": row[1], "dob": row[2], "medical_records": row[3]}
+            for row in rows
+        ]
+
         cursor.close()
         conn.close()
         return jsonify(patients)
@@ -154,7 +164,7 @@ def search_patients():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        query = "SELECT * FROM Patient WHERE TRUE"
+        query = "SELECT NID, name, dob, medical_records FROM Patient WHERE TRUE"
         params = []
         if name:
             query += " AND name ILIKE %s"
@@ -163,25 +173,48 @@ def search_patients():
             query += " AND NID = %s"
             params.append(nid)
         cursor.execute(query, params)
-        patients = cursor.fetchall()
+        rows = cursor.fetchall()
+
+        # Convert rows to a list of dictionaries
+        patients = [
+            {"nid": row[0], "name": row[1], "dob": row[2], "medical_records": row[3]}
+            for row in rows
+        ]
+
         cursor.close()
         conn.close()
         return jsonify(patients)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/appointments', methods=['GET'])
 def get_appointments():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Books;")
-        appointments = cursor.fetchall()
+        cursor.execute("SELECT appointment_id, Patient_NID, Department_Specialty, AppointmentDate, Reason FROM Books;")
+        rows = cursor.fetchall()
+
+        # Convert rows to dictionaries without time manipulation
+        appointments = [
+            {
+                "appointment_id": row[0],
+                "patient_nid": row[1],
+                "department_specialty": row[2],
+                "appointmentdate": row[3].strftime('%Y-%m-%d %H:%M:%S'),  # Plain timestamp as string
+                "reason": row[4]
+            }
+            for row in rows
+        ]
+
         cursor.close()
         conn.close()
         return jsonify(appointments)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
 
 @app.route('/book_appointment', methods=['POST'])
 def book_appointment():
@@ -223,10 +256,14 @@ def search_appointments():
     patient_id = request.args.get('patient_id')
     department_specialty = request.args.get('department_specialty')
     appointment_id = request.args.get('appointment_id')
+
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        query = "SELECT * FROM Books WHERE TRUE"
+        query = """
+            SELECT appointment_id, Patient_NID, Department_Specialty, AppointmentDate, Reason
+            FROM Books WHERE TRUE
+        """
         params = []
         if date:
             query += " AND AppointmentDate::date = %s"
@@ -240,8 +277,22 @@ def search_appointments():
         if appointment_id:
             query += " AND appointment_id = %s"
             params.append(appointment_id)
+
         cursor.execute(query, params)
-        appointments = cursor.fetchall()
+        rows = cursor.fetchall()
+
+        # Convert rows to dictionaries
+        appointments = [
+            {
+                "appointment_id": row[0],
+                "patient_nid": row[1],
+                "department_specialty": row[2],
+                "appointmentdate": row[3],
+                "reason": row[4]
+            }
+            for row in rows
+        ]
+
         cursor.close()
         conn.close()
         return jsonify(appointments)
@@ -253,13 +304,21 @@ def get_pharmacy():
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM Pharmacy;")
-        drugs = cursor.fetchall()
+        cursor.execute("SELECT prescription_id, drug_name, cost, quantity FROM Pharmacy;")
+        rows = cursor.fetchall()
+
+        # Convert rows to dictionaries
+        drugs = [
+            {"prescription_id": row[0], "drug_name": row[1], "cost": row[2], "quantity": row[3]}
+            for row in rows
+        ]
+
         cursor.close()
         conn.close()
         return jsonify(drugs)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/add_drug', methods=['POST'])
 def add_drug():
@@ -332,12 +391,20 @@ def get_issued_drugs():
             JOIN Patient p ON id.Patient_NID = p.NID;
             """
         )
-        issued_drugs = cursor.fetchall()
+        rows = cursor.fetchall()
+
+        # Convert rows to dictionaries
+        issued_drugs = [
+            {"mpid": row[0], "patient_name": row[1], "prescription_id": row[2]}
+            for row in rows
+        ]
+
         cursor.close()
         conn.close()
         return jsonify(issued_drugs)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 from werkzeug.security import generate_password_hash
 

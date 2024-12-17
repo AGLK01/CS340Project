@@ -72,105 +72,126 @@
 
     <script>
         function adjustTimeZone(dateString) {
-            const date = new Date(dateString);
-            date.setHours(date.getHours() - 3); // Adjusting 3 hours to reflect accurate time
-            return date;
-        }
+    const date = new Date(dateString);
+    date.setHours(date.getHours() - 3); // Adjusting 3 hours to reflect accurate time
+    return date;
+}
 
-        document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const newAppointment = {
-                Patient_NID: document.getElementById('patient_id').value,
-                Department_Specialty: document.getElementById('department_specialty').value,
-                AppointmentDate: document.getElementById('appointment_date').value,
-                Reason: document.getElementById('reason').value
-            };
+document.getElementById('appointmentForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const newAppointment = {
+        Patient_NID: document.getElementById('patient_id').value,
+        Department_Specialty: document.getElementById('department_specialty').value,
+        AppointmentDate: document.getElementById('appointment_date').value,
+        Reason: document.getElementById('reason').value
+    };
 
-            const response = await fetch('http://127.0.0.1:5000/book_appointment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newAppointment)
-            });
-            if (response.ok) {
-                alert('Appointment booked successfully!');
-                fetchAppointments();
-                document.getElementById('appointmentForm').reset();
-            } else {
-                const error = await response.json();
-                alert(`Error: ${error.error}`);
-            }
-        });
-
-        async function fetchAppointments() {
-            const response = await fetch('http://127.0.0.1:5000/appointments');
-            const appointments = await response.json();
-            const tableBody = document.querySelector('#appointmentTable tbody');
-            tableBody.innerHTML = '';
-            appointments.forEach(appointment => {
-                const appointmentDate = adjustTimeZone(appointment.appointmentdate);
-                const formattedDate = appointmentDate.toISOString().split('T')[0]; // Format date to YYYY-MM-DD
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${appointment.appointment_id}</td>
-                    <td>${appointment.patient_nid}</td>
-                    <td>${appointment.department_specialty}</td>
-                    <td>${formattedDate}</td>
-                    <td>${appointment.reason}</td>
-                    <td>
-                        <button onclick="deleteAppointment(${appointment.appointment_id})">Delete</button>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }
-
-        document.getElementById('searchAppointmentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const appointment_id = document.getElementById('search_appointment_id').value;
-            const date = document.getElementById('search_appointment_date').value;
-            const patient_id = document.getElementById('search_patient_id').value;
-            const department_specialty = document.getElementById('search_department_specialty').value;
-            let query = `http://127.0.0.1:5000/search_appointments?`;
-            if (appointment_id) query += `appointment_id=${appointment_id}&`;
-            if (date) query += `date=${date}&`;
-            if (patient_id) query += `patient_id=${patient_id}&`;
-            if (department_specialty) query += `department_specialty=${department_specialty}&`;
-            const response = await fetch(query.slice(0, -1)); // Remove the trailing '&'
-            const appointments = await response.json();
-            const tableBody = document.querySelector('#appointmentSearchTable tbody');
-            tableBody.innerHTML = '';
-            appointments.forEach(appointment => {
-                const appointmentDate = adjustTimeZone(appointment.appointmentdate);
-                const formattedDate = appointmentDate.toISOString().split('T')[0]; // Format date to YYYY-MM-DD
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${appointment.appointment_id}</td>
-                    <td>${appointment.patient_nid}</td>
-                    <td>${appointment.department_specialty}</td>
-                    <td>${formattedDate}</td>
-                    <td>${appointment.reason}</td>
-                    <td>
-                        <button onclick="deleteAppointment(${appointment.appointment_id})">Delete</button>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-        });
-
-        async function deleteAppointment(appointment_id) {
-            const response = await fetch(`http://127.0.0.1:5000/delete_appointment?appointment_id=${appointment_id}`, {
-                method: 'DELETE'
-            });x
-            if (response.ok) {
-                alert('Appointment deleted successfully!');
-                fetchAppointments();
-            } else {
-                const error = await response.json();
-                alert(`Error: ${error.error}`);
-            }
-        }
-
+    const response = await fetch('http://127.0.0.1:5000/book_appointment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAppointment)
+    });
+    if (response.ok) {
+        alert('Appointment booked successfully!');
         fetchAppointments();
+        document.getElementById('appointmentForm').reset();
+    } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+    }
+});
+
+async function fetchAppointments() {
+    const response = await fetch('http://127.0.0.1:5000/appointments');
+    const appointments = await response.json();
+    const tableBody = document.querySelector('#appointmentTable tbody');
+    tableBody.innerHTML = '';
+
+    appointments.forEach(appointment => {
+        // Parse the timestamp and format it with AM/PM
+        const appointmentDate = new Date(appointment.appointmentdate);
+        const formattedDate = appointmentDate.toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${appointment.appointment_id}</td>
+            <td>${appointment.patient_nid}</td>
+            <td>${appointment.department_specialty}</td>
+            <td>${formattedDate}</td>  <!-- Display formatted date -->
+            <td>${appointment.reason}</td>
+            <td>
+                <button onclick="deleteAppointment(${appointment.appointment_id})">Delete</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+
+document.getElementById('searchAppointmentForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const appointment_id = document.getElementById('search_appointment_id').value;
+    const date = document.getElementById('search_appointment_date').value;
+    const patient_id = document.getElementById('search_patient_id').value;
+    const department_specialty = document.getElementById('search_department_specialty').value;
+
+    let query = `http://127.0.0.1:5000/search_appointments?`;
+    if (appointment_id) query += `appointment_id=${appointment_id}&`;
+    if (date) query += `date=${date}&`;
+    if (patient_id) query += `patient_id=${patient_id}&`;
+    if (department_specialty) query += `department_specialty=${department_specialty}&`;
+
+    const response = await fetch(query.slice(0, -1)); // Remove the trailing '&'
+    const appointments = await response.json();
+    const tableBody = document.querySelector('#appointmentSearchTable tbody');
+    tableBody.innerHTML = '';
+    appointments.forEach(appointment => {
+        const appointmentDate = new Date(appointment.appointmentdate);
+        const formattedDate = appointmentDate.toLocaleDateString('en-GB', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        });
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${appointment.appointment_id}</td>
+            <td>${appointment.patient_nid}</td>
+            <td>${appointment.department_specialty}</td>
+            <td>${formattedDate}</td>
+            <td>${appointment.reason}</td>
+            <td>
+                <button onclick="deleteAppointment(${appointment.appointment_id})">Delete</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+});
+
+async function deleteAppointment(appointment_id) {
+    const response = await fetch(`http://127.0.0.1:5000/delete_appointment?appointment_id=${appointment_id}`, {
+        method: 'DELETE'
+    });
+    if (response.ok) {
+        alert('Appointment deleted successfully!');
+        fetchAppointments();
+    } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+    }
+}
+
+fetchAppointments();
+
     </script>
 </body>
 </html>
