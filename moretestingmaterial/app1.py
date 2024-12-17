@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify, render_template
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import pg8000
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -12,10 +11,13 @@ DB_NAME = "postgres"
 DB_USER = "postgres.agwvpuvzmhsberiqxsim"
 DB_PASS = "kjkger2346wgae#$Q^"
 DB_PORT = "6543"
+def fetch_as_dict(cursor):
+    columns = [desc[0] for desc in cursor.description]
+    return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
 # Connect to PostgreSQL
 def get_db_connection():
-    conn = psycopg2.connect(
+    conn = pg8000.connect(
         host=DB_HOST,
         database=DB_NAME,
         user=DB_USER,
@@ -32,9 +34,9 @@ def home():
 def get_employees():
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
         cursor.execute("SELECT * FROM Employee;")
-        employees = cursor.fetchall()
+        employees = fetch_as_dict(cursor)
         cursor.close()
         conn.close()
         return jsonify(employees)
@@ -81,7 +83,7 @@ def search_employees():
     eid = request.args.get('eid')
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
         query = "SELECT * FROM Employee WHERE TRUE"
         params = []
         if name:
@@ -91,7 +93,7 @@ def search_employees():
             query += " AND EID = %s"
             params.append(eid)
         cursor.execute(query, params)
-        employees = cursor.fetchall()
+        employees = fetch_as_dict(cursor)
         cursor.close()
         conn.close()
         return jsonify(employees)
@@ -136,7 +138,7 @@ def delete_patient():
 def get_patients():
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
         cursor.execute("SELECT * FROM Patient;")
         patients = cursor.fetchall()
         cursor.close()
@@ -151,7 +153,7 @@ def search_patients():
     nid = request.args.get('nid')
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
         query = "SELECT * FROM Patient WHERE TRUE"
         params = []
         if name:
@@ -172,7 +174,7 @@ def search_patients():
 def get_appointments():
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
         cursor.execute("SELECT * FROM Books;")
         appointments = cursor.fetchall()
         cursor.close()
@@ -223,7 +225,7 @@ def search_appointments():
     appointment_id = request.args.get('appointment_id')
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
         query = "SELECT * FROM Books WHERE TRUE"
         params = []
         if date:
@@ -250,7 +252,7 @@ def search_appointments():
 def get_pharmacy():
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
         cursor.execute("SELECT * FROM Pharmacy;")
         drugs = cursor.fetchall()
         cursor.close()
@@ -322,7 +324,7 @@ def issue_drug():
 def get_issued_drugs():
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
         cursor.execute(
             """
             SELECT id.MPID, p.name AS patient_name, id.Prescription_ID
@@ -362,13 +364,14 @@ def register_user():
 
         return jsonify({"message": "User registered successfully!"}), 201
 
-    except psycopg2.errors.UniqueViolation:
-        return jsonify({"error": "Username already exists"}), 409
+
     except Exception as e:
+
+        if "duplicate key value" in str(e).lower() or "unique constraint" in str(e).lower():
+            return jsonify({"error": "Username already exists"}), 409
+
         return jsonify({"error": str(e)}), 500
 
-
-from werkzeug.security import check_password_hash
 
 from werkzeug.security import check_password_hash
 
@@ -383,10 +386,10 @@ def login_user():
             return jsonify({"error": "Username and password are required"}), 400
 
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor()
 
         # Case-insensitive query for username
-        cursor.execute("SELECT * FROM users WHERE LOWER(username) = LOWER(%s);", (username,))
+        cursor.execute("SELECT username, password FROM users WHERE LOWER(username) = LOWER(%s);", (username,))
         user = cursor.fetchone()
 
         # Log fetched user for debugging
@@ -395,13 +398,14 @@ def login_user():
         cursor.close()
         conn.close()
 
-        if user and check_password_hash(user['password'], password):
+        if user and check_password_hash(user[1], password):  # Access password by index 1
             return jsonify({"message": "Login successful!"}), 200
         else:
             return jsonify({"error": "Invalid username or password"}), 401
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 
 
